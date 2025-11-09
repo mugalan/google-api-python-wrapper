@@ -27,7 +27,7 @@ from googleapiclient.discovery import Resource
 from typing import Optional, Any, Tuple
 
 
-class googleApiMethods:
+class GoogleApi:
     """
     Encapsulates Google OAuth + service clients.
     After init, check `self.google_auth` and `self.error`.

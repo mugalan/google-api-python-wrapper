@@ -1,5 +1,5 @@
-from .core import googleApiMethods
+from .core import GoogleApi
 
 __version__ = "0.1.0"
-__all__ = ["googleApiMethods"]
+__all__ = ["GoogleApi"]
 
