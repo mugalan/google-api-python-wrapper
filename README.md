@@ -1,6 +1,6 @@
 # google-api-python-wrapper
 
-A lightweight convenience wrapper around Google APIs (Drive, Docs, Sheets, Calendar, Tasks, Forms, Gmail). It centralizes OAuth and exposes a single class with handy, task‑focused methods so you can script common workflows in a few lines.
+A lightweight convenience wrapper around Google APIs (Drive, Docs, Sheets, Calendar, Tasks, Forms, Gmail). It centralizes OAuth and exposes a single class with handy, task-focused methods so you can script common workflows in a few lines.
 
 ---
 
@@ -41,55 +41,61 @@ pip install -e .
 
 ## 🔑 Authentication
 
-The library supports interactive OAuth (ideal for local/Colab) and token‑file reuse.
+The helper supports **three** auth paths. You do **not** need to pass `oauth_client_file` if a valid token exists or if you’re in Colab and want to use Colab’s built‑in auth.
 
-### Files you need
+### 1) Silent token reuse (no secrets)
 
-* **OAuth client file**: e.g. `client_secret_XXXXX.apps.googleusercontent.com.json`
-* **Token file(s)**: created on first successful sign‑in; stem defaults to `token` (e.g., `token.json`). You can change the stem via `oauth_token_stem`.
-
-### Colab / Local (interactive flow)
-
-In Google Colab, upload your OAuth client JSON to the runtime first.
+If a token exists at `utilities/<TOKEN_STEM>.json` (or in a custom dir), it will be loaded and refreshed **silently**.
 
 ```python
-from google_api_python_wrapper import googleApiMethods as GoogleApi
+from google_api_python_wrapper import GoogleApi
 
 api = GoogleApi(
-    oauth_client_file="client_secret.json",   # uploaded/available path
-    oauth_token_stem="token",                # will create token.json on first auth
-    interactive=True,                         # show browser consent flow
+    oauth_token_stem="oOne_token",   # or your chosen stem
+    interactive=False,                # optional; silent auth using token
 )
-
-if not api.google_auth:
-    raise RuntimeError(api.error or "OAuth failed")
+assert api.google_auth, api.error
 ```
 
-### Headless / Reusing an existing token
+### 2) Colab built-in auth (no secrets, no token)
 
-If a valid token file (e.g., `token.json`) already exists on disk, you can authenticate without interactivity:
+If you are in **Colab** and **no client info** is provided (no env var and no file), the helper falls back to **Colab user auth** and requests all required scopes. Note that `calendar`, `forms` and `task` are not included in this authorization flow.
 
 ```python
-api = GoogleApi(
-    oauth_client_file="client_secret.json",
-    oauth_token_stem="token",
-    interactive=False,   # try silent auth using existing token
-)
-
-# Later, if a token appears after construction:
-api.ensure_auth()
+# In Colab:
+from google_api_python_wrapper import GoogleApi
+api = GoogleApi()   # no args needed in Colab for built-in auth
+assert api.google_auth, api.error
 ```
 
-> **Scopes** are requested according to the APIs you use (Drive/Docs/Sheets/Calendar/Tasks/Forms/Gmail). For Gmail send, ensure the project allows the scope `https://www.googleapis.com/auth/gmail.send`.
+> This uses your signed‑in Colab Google account. Rerun auth if you change scopes.
+
+### 3) Installed-app flow (creates a reusable token)
+
+Use your OAuth Client (Desktop) JSON or set `GOOGLE_OAUTH_CLIENT_INFO` with the JSON. This path creates `utilities/<TOKEN_STEM>.json` for future silent auth.
+
+```python
+import os, json
+from google_api_python_wrapper import GoogleApi
+
+# Option A: secrets via file (defaults to 'oauth-client.json' if not provided)
+api = GoogleApi(oauth_client_file="oauth-client.json", oauth_token_stem="oOne_token", interactive=True)
+
+# Option B: secrets via env var (no file on disk)
+os.environ["GOOGLE_OAUTH_CLIENT_INFO"] = json.dumps({
+  "installed": {"client_id": "...","project_id": "...","auth_uri": "...",
+                 "token_uri": "...","client_secret": "...","redirect_uris": ["http://localhost"]}
+}})
+api = GoogleApi(oauth_token_stem="oOne_token", interactive=True)
+```
 
 ---
 
 ## 🧰 Quick start
 
 ```python
-from google_api_python_wrapper import googleApiMethods as GoogleApi
-
-api = GoogleApi(oauth_client_file="client_secret.json", interactive=True)
+from google_api_python_wrapper import GoogleApi
+api = GoogleApi()  # Colab: uses built-in auth; Local: try token then fallback if configured
 assert api.google_auth, api.error
 ```
 
@@ -108,7 +114,7 @@ resp = api.get_gdrive_folder_explorer(
     page_size=10,
 )
 print(resp["message"])                    # human‑readable summary
-records = (resp["response"]["data"])     # JSON string of {"records": [...]}
+df = pd.DataFrame(json.loads(resp["response"]["data"]).get('records',[]))     # A pandas DataFrame of {"records": [...]}
 ```
 
 ### 2) Create a folder
@@ -158,7 +164,7 @@ print(resp["response"]["message"])  # Document "Meeting Notes" created with ID: 
 doc_id = resp["response"]["meta_data"]["doc_id"]
 ```
 
-### 2) Write Markdown‑ish content to the Doc
+### 2) Write Markdown-ish content to the Doc
 
 ```python
 markdown = """
@@ -190,7 +196,7 @@ print(out["response"]["data"])  # markdown string
 ```python
 s = api.get_all_sheets_in_a_google_sheet(spreadsheet_id="<SHEET_ID>")
 print(s["message"])      # log per sheet
-data_json = s["response"]["data"]
+df = pd.DataFrame(json.loads(resp["response"]["data"]).get('records',[]))     # A pandas DataFrame of {"records": [...]}
 ```
 
 ### 2) Add a DataFrame as a new tab
@@ -332,17 +338,19 @@ records_json = resp["response"]["data"]
 
 ## 💡 Tips & gotchas
 
-* Call `api.ensure_auth()` if token files are created after constructing the object.
-* Many methods return a structure with keys like `status`, `response.meta_data`, `response.data` (often a JSON string), and `message`.
-* Drive copy/move methods assume you have sufficient permissions on both source and destination.
-* For large Drive trees, you may hit rate limits—consider batching and backoff.
+* **Token location**: tokens are saved to `utilities/<TOKEN_STEM>.json` by default. Override the directory with env var `GOOGLE_OAUTH_TOKEN_DIR`.
+* **Colab persistence**: set `GOOGLE_OAUTH_TOKEN_DIR` to a path in Drive to persist across sessions (see cheat sheet below).
+* **Scopes**: if you call a method that needs a scope your token lacks, delete the token JSON and re‑auth with broader scopes.
+* Call `api.ensure_auth()` if token files appear after construction.
+* Drive copy/move needs sufficient permissions for source + destination.
+* Large Drive trees may hit rate limits—batch and backoff help.
 
 ---
 
 ## 🧪 Minimal sanity check
 
 ```python
-api = GoogleApi(oauth_client_file="client_secret.json", interactive=True)
+api = GoogleApi()
 assert api.google_auth, api.error
 print("Drive ready?", bool(api.drive_service))
 print("Docs ready?", bool(api.docs_service))
@@ -354,12 +362,29 @@ print("Calendar ready?", bool(api.calendar_service))
 
 ## 🛠 Troubleshooting
 
-* **`invalid_grant` / consent errors**: Ensure you’re using a Desktop OAuth client; add your test user under OAuth consent screen if the app is in testing mode.
-* **`403 insufficient permissions`**: Missing scopes; delete token file and re‑authenticate after enabling needed APIs/scopes in the Cloud Console.
-* **Colab cannot find `client_secret.json`**: Upload it to the runtime and pass the correct path.
+* **Use Colab without secrets**: simply `api = GoogleApi()`; it will prompt using Colab’s built-in auth if needed.
+* **Silent reuse not happening**: ensure the token exists at `utilities/<TOKEN_STEM>.json` (or your custom dir) and you passed the same `oauth_token_stem`.
+* **Persist tokens in Colab**: mount Drive and set `GOOGLE_OAUTH_TOKEN_DIR` *before* constructing the API.
 
----
+### Colab auth cheat sheet
 
-## 📄 License
+```python
+# 1) Persist tokens in Drive
+from google.colab import drive
+drive.mount('/content/drive')
 
-MIT (see repository).
+import os
+os.environ['GOOGLE_OAUTH_TOKEN_DIR'] = '/content/drive/MyDrive/colab_tokens'  # directory, not a file
+
+# 2) First run (Colab built-in; no secrets):
+from google_api_python_wrapper import googleApiMethods as GoogleApi
+api = GoogleApi(oauth_token_stem='oOne_token')
+assert api.google_auth, api.error
+
+# 3) Subsequent runs: silent reuse
+api = GoogleApi(oauth_token_stem='oOne_token', interactive=False)
+assert api.google_auth, api.error
+```
+
+* **Missing/insufficient scopes**: re-auth in Colab (re-run, or delete token JSON if you’re using token auth) and ensure the scope list includes what you need.
+* **Switch account**: delete the token JSON in your token directory and re-auth.
