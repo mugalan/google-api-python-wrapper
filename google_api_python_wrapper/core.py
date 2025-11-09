@@ -545,11 +545,10 @@ class GoogleApi:
         meta_data = {} 
         doc_id=''
         try:
-            doc_metadata = {
-                'name': title,
-                'mimeType': 'application/vnd.google-apps.document',
-                'parents': [parent_folder_id]
-            }
+            doc_metadata = {'name': title, 'mimeType': 'application/vnd.google-apps.document'}
+            if parent_folder_id:
+                doc_metadata['parents'] = [parent_folder_id]
+
             doc = self.drive_service.files().create(body=doc_metadata, fields='id').execute()
             message=f'Document "{title}" created with ID: {doc.get("id")}'
             doc_id = doc.get('id')
