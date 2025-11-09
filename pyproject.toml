@@ -3,7 +3,7 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "moodle-api-python-wrapper"
+name = "google-api-python-wrapper"
 version = "0.1.0"
 description = ""
 readme = "README.md"
@@ -26,12 +26,12 @@ dependencies = [
   "xmltodict>=0.12"
 ]
 
-# Make Plotly optional (install with: pip install 'moodle-api-python-wrapper[plotting]')
+# Make Plotly optional (install with: pip install 'google-api-python-wrapper[plotting]')
 [project.optional-dependencies]
 plotting = ["plotly>=5.0"]
 
 [project.urls]
-Repository = "https://github.com/mugalan/moodle-api-python-wrapper"
+Repository = "https://github.com/mugalan/google-api-python-wrapper"
 
 [tool.setuptools]
-packages = ["moodle_api_python_wrapper"]
+packages = ["google_api_python_wrapper"]
