@@ -746,8 +746,9 @@ class GoogleApi:
             ).execute()
             source_modified = source_file_metadata['modifiedTime']
             dest_modified = existing_files[0]['modifiedTime']
-
-            if source_modified <= dest_modified:
+            src = isoparse(source_modified)
+            dst = isoparse(dest_modified)
+            if src <= dst:
                 message = f"Skipping '{name_to_check}' — destination is newer or same."
                 meta_data = {
                             'folder_id': new_folder_id,
