@@ -1874,8 +1874,15 @@ class GoogleApi:
                     "body": event,
                     "sendUpdates": "all",
                 }
+
                 if use_google_meet:
                     insert_kwargs["conferenceDataVersion"] = 1
+                created = self.calendar_service.events().insert(**insert_kwargs).execute()
+                meet = None
+                for ep in created.get("conferenceData", {}).get("entryPoints", []):
+                    if ep.get("entryPointType") == "video":
+                        meet = ep.get("uri"); break
+
 
                 created_event = self.calendar_service.events().insert(**insert_kwargs).execute()
 
